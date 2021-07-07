@@ -8,13 +8,22 @@ from mpl_toolkits.mplot3d import Axes3D
 from scipy import optimize
 from scipy.optimize import curve_fit
 
-from ellipse import LsqEllipse
-from matplotlib.patches import Ellipse
-
 from fitEllipse import fit_ellipse
 
 graphWidth = 800 # units are pixels
 graphHeight = 600 # units are pixels
+
+def draw3D(X, Y, Z, f):
+    plt.grid(True)
+    plt.title("camera 3D position")
+    axes = Axes3D(f)
+    axes.scatter(X, Y, Z, c='g')
+    # axes.scatter(fit_point_x, point_y, fit_point_z, c='purple')
+    axes.set_title('Scatter Plot (click-drag with mouse)')
+    axes.set_xlabel('X Data')
+    axes.set_ylabel('Y Data')
+    axes.set_zlabel('Z Data')
+    # plt.show()
 
 def rotationMatrixToEulerAngles(R) :
     Rt = np.transpose(R)
@@ -75,19 +84,18 @@ def objective5(x, a, b, c, d, e, f):
 def objective6(x, a, b, c, d, e, f, g):
 	return (a * x + b * x**2 + c * x**3 + d * x**4 + e * x**5 + f * x**6 + g)
 
-
-
-def yz_plot(data, objective):
-    y = data[:, 0, 1]
-    z = data[:, 0, 2]
-    popt, _ = curve_fit(objective, y, z)
-    return popt
-
-def yx_plot(data, objective):
-    y = data[:, 0, 1]
+def xy_plot(data, objective):
     x = data[:, 0, 0]
-    popt, _ = curve_fit(objective, y, x)
+    y = data[:, 0, 1]
+    popt, _ = curve_fit(objective, x, y)
     return popt
+
+def xz_plot(data, objective):
+    x = data[:, 0, 0]
+    z = data[:, 0, 2]
+    popt, _ = curve_fit(objective, x, z)
+    return popt
+
 
 def ellipse_fit(data):
     X = data[:, 0, 0]
@@ -103,28 +111,30 @@ def ellipse_fit2(data):
     return reg
 
 
-def y_eulerx_fit(data1, data2):
-    y = data1[:, 0, 1]
+def x_eulerx_fit(data1, data2):
+    x = data1[:, 0, 0]
     euler_x = data2[:, 0, 0]
-    popt, _ = curve_fit(objective6, y, euler_x)
+    popt, _ = curve_fit(objective6, x, euler_x)
+    #eulerx = a1 * y + b1 * y**2 + c1 * y**3 + d1
     return popt
 
-def y_eulery_fit(data1, data2):
-    y = data1[:, 0, 1]
+def x_eulery_fit(data1, data2):
+    x = data1[:, 0, 0]
     euler_y = data2[:, 0, 1]
-    popt, _ = curve_fit(objective6, y, euler_y)
+    popt, _ = curve_fit(objective6, x, euler_y)
+    #eulerya1 * y + b1 * y**2 + c1
     return popt
 
-def y_eulerz_fit(data1, data2):
-    y = data1[:, 0, 1]
+def x_eulerz_fit(data1, data2):
+    x = data1[:, 0, 0]
     euler_z = data2[:, 0, 2]
-    popt, _ = curve_fit(objective6, y, euler_z)
+    popt, _ = curve_fit(objective6, x, euler_z)
+    #eulerx = a1 * y + b1 * y**2 + c1 * y**3 + d1
     return popt
-
 if __name__ == '__main__':
     #read rotation matrix data
-    rotation_data = np.ones((30,3,3))
-    rotation_file = open("rotation_matrix_file")
+    rotation_data = np.ones((12,3,3))
+    rotation_file = open("rotation_matrix_file_12")
     lines = rotation_file.readlines()
     index = 0
     for line in lines:
@@ -136,9 +146,9 @@ if __name__ == '__main__':
         index += 1
 
     #read world_position data
-    result = np.ones((30,1,3))
-    world_position_data = np.ones((30,1,3))
-    world_position_file = open("world_position_file")
+    result = np.ones((12,1,3))
+    world_position_data = np.ones((12,1,3))
+    world_position_file = open("world_position_file_12")
     world_position_file_lines = world_position_file.readlines()
     index = 0
     for line in world_position_file_lines:
@@ -150,21 +160,30 @@ if __name__ == '__main__':
         index += 1
 
     #get euler for each rotation matrix
-    euler = np.ones((30,1,3))
-    for i in range(0,30):
+    euler = np.ones((12,1,3))
+    for i in range(0,12):
         euler1 = rotationMatrixToEulerAngles(rotation_data[i])
         euler[i,:] = euler1
 
 
-    y = np.arange(-45, 25, 0.1)
+    x = np.arange(-6, 8, 0.1)
     point_x = world_position_data[:,0,0]
     point_y = world_position_data[:,0,1]
     point_z = world_position_data[:,0,2]
+    fitParaFile = open("fit_para.txt", 'w')
+    f1 = plt.figure(figsize=(graphWidth / 100.0, graphHeight / 100.0), dpi=100)
+    draw3D(point_x, point_y, point_z, f1)
+#################   X-Y poly fit   #################
+    popt_y = xy_plot(world_position_data, objective2)
+    a_y, b_y, c_y = popt_y
+    fit_y = a_y * x + b_y * x**2 + c_y
+    fitParaFile.write("y=%.15f*x + %.15f*x^2 + %.15f\n"%(a_y, b_y, c_y))
 
-#################   Y-X poly fit   #################
-    popt_x = yx_plot(world_position_data, objective6)
-    a_x, b_x, c_x, d_x, e_x, f_x, g_x = popt_x
-    fit_x = a_x * y + b_x * y**2 + c_x * y**3 + d_x * y**4 + e_x * y**5 + f_x * y**6 + g_x
+    fig = plt.figure(figsize=(graphWidth/100.0, graphHeight/100.0), dpi=100)
+    plt.title('X-Y fit')
+    plt.scatter(point_x, world_position_data[:,0,1], s=16., c='b') #三次
+    plt.plot(x, fit_y, c='g') #三次
+    # plt.show()
 
 #################   Y-X ellipses fit   #################
     # reg2 = ellipse_fit2(world_position_data)
@@ -185,35 +204,63 @@ if __name__ == '__main__':
     # t = np.arccos((y - center1) / np.sqrt(C1 ** 2 + D1 **2)) - theta1
     # fit_x = center0 - (A1 * np.cos(t) - B1 * np.sin(t))
 
-#################   Y-Z poly fit   #################
-    popt_z = yz_plot(world_position_data, objective2)
+#################   X-Z poly fit   #################
+    popt_z = xz_plot(world_position_data, objective2)
     a_z, b_z, c_z = popt_z
-    fit_z = a_z * y + b_z * y**2 + c_z
+    #print(a_z, b_z, c_z)
+    fit_z = a_z * x + b_z * x**2 + c_z
+    fitParaFile.write("z=%.15f*x + %.15f*x^2 + %.15f\n"%(a_z, b_z, c_z))
+    fig = plt.figure(figsize=(graphWidth/100.0, graphHeight/100.0), dpi=100)
+    plt.title('X-Z fit')
+    plt.scatter(point_x, world_position_data[:,0,2], s=16., c='b') #三次
+    plt.plot(x, fit_z, c='g') #三次
+    # plt.show()
 
-#################   Y-Eulerx poly fit   #################
-    popt_eulerx = y_eulerx_fit(world_position_data, euler)
+#################   X-Eulerx poly fit   #################
+    popt_eulerx = x_eulerx_fit(world_position_data, euler)
     a_ex, b_ex, c_ex, d_ex, e_ex, f_ex, g_ex= popt_eulerx
-    fit_eulerx = a_ex * y + b_ex * y**2 + c_ex * y**3 + d_ex * y**4 + e_ex * y**5 + f_ex * y**6 + g_ex
-
-#################   Y-Eulery poly fit   #################
-    popt_eulery = y_eulery_fit(world_position_data, euler)
+    #print(a_ex, b_ex, c_ex, d_ex, e_ex, f_ex, g_ex)
+    fit_point_eulerx = a_ex * point_x + b_ex * point_x**2 + c_ex * point_x**3 + d_ex * point_x**4 + e_ex * point_x**5 + f_ex * point_x**6 + g_ex
+    fit_eulerx = a_ex * x + b_ex * x**2 + c_ex *x**3 + d_ex * x**4 + e_ex * x**5 + f_ex * x**6 + g_ex
+    fitParaFile.write("Eulerx=%.15f*x + %.15f*x^2 + %.15f*x^3 + %.15f*x^4 + %.15f*x^5 + %.15f*x^6 + %.15f\n"%(a_ex, b_ex, c_ex, d_ex, e_ex, f_ex, g_ex))
+    fig = plt.figure(figsize=(graphWidth/100.0, graphHeight/100.0), dpi=100)
+    plt.title('X-EulerX fit')
+    plt.scatter(point_x, fit_point_eulerx, s=16., c='b') #三次
+    plt.plot(x, fit_eulerx, c='g') #三次
+    # plt.show()
+#################   X-Eulery poly fit   #################
+    popt_eulery = x_eulery_fit(world_position_data, euler)
     a_ey, b_ey, c_ey, d_ey, e_ey, f_ey, g_ey= popt_eulery
-    fit_eulery = a_ey * y + b_ey * y**2 + c_ey * y**3 + d_ey * y**4 + e_ey * y**5 + f_ey * y**6 + g_ey
-
-#################   Y-Eulerz poly fit   #################
-    popt_eulerz = y_eulerz_fit(world_position_data, euler)
+    fit_point_eulery = a_ey * point_x + b_ey * point_x**2 + c_ey * point_x**3 + d_ey * point_x**4 + e_ey * point_x**5 + f_ey * point_x**6 + g_ey
+    fit_eulery = a_ey * x + b_ey * x**2 + c_ey * x**3 + d_ey * x**4 + e_ey * x**5 + f_ey * x**6 + g_ey
+    fitParaFile.write("Eulery=%.15f*x + %.15f*x^2 + %.15f*x^3 + %.15f*x^4 + %.15f*x^5 + %.15f*x^6 + %.15f\n"%(a_ey, b_ey, c_ey, d_ey, e_ey, f_ey, g_ey))
+    fig = plt.figure(figsize=(graphWidth/100.0, graphHeight/100.0), dpi=100)
+    plt.title('X-EulerY fit')
+    plt.scatter(point_x, fit_point_eulery, s=16., c='b') #三次
+    plt.plot(x, fit_eulery, c='g') #三次
+    # plt.show()
+#################   X-Eulerz poly fit   #################
+    popt_eulerz = x_eulerz_fit(world_position_data, euler)
     a_ez, b_ez, c_ez, d_ez, e_ez, f_ez, g_ez= popt_eulerz
-    fit_eulerz = a_ez * y + b_ez * y**2 + c_ez * y**3 + d_ez * y**4 + e_ez * y**5 + f_ez * y**6 + g_ez
+    fit_point_eulerz = a_ez * point_x + b_ez * point_x**2 + c_ez * point_x**3 + d_ez * point_x**4 + e_ez * point_x**5 + f_ez * point_x**6 + g_ez
+    fit_eulerz = a_ez * x + b_ez * x**2 + c_ez * x**3 + d_ez * x**4 + e_ez * x**5 + f_ez * x**6 + g_ez
+    fitParaFile.write("Eulerz=%.15f*x + %.15f*x^2 + %.15f*x^3 + %.15f*x^4 + %.15f*x^5 + %.15f*x^6 + %.15f\n"%( a_ez, b_ez, c_ez, d_ez, e_ez, f_ez, g_ez))
+    # print(a_ez, b_ez, c_ez, d_ez, e_ez, f_ez, g_ez)
+    fig = plt.figure(figsize=(graphWidth/100.0, graphHeight/100.0), dpi=100)
+    plt.title('X-EulerZ fit')
+    plt.scatter(point_x, fit_point_eulerz, s=16., c='b') #三次
+    plt.plot(x, fit_eulerz, c='g') #三次
+    plt.show()
 
 ##################  test point ##########################
-    test_y = random.uniform(-46, 23)
+    test_x = random.uniform(-46, 23)
 
-    test_x = a_x * test_y + b_x * test_y**2 + c_x * test_y**3 + d_x * test_y**4 + e_x * test_y**5 + f_x * test_y**6 + g_x
-    test_z = a_z * test_y + b_z * test_y**2 + c_z
+    test_y = a_y * test_x + b_y * test_x**2 + c_y
+    test_z = a_z * test_x + b_z * test_x**2 + c_z
 
-    test_eulerx = a_ex *test_y + b_ex * test_y**2 + c_ex * test_y**3 + d_ex * test_y**4 + e_ex * test_y**5 + f_ex * test_y**6 + g_ex
-    test_eulery = a_ey * test_y + b_ey * test_y**2 + c_ey * test_y**3 + d_ey * test_y**4 + e_ey * test_y**5 + f_ey * test_y**6 + g_ey
-    test_eulerz = a_ez * test_y + b_ez * test_y**2 + c_ez * test_y**3 + d_ez * test_y**4 + e_ez * test_y**5 + f_ez * test_y**6 + g_ez
+    test_eulerx = a_ex *test_x + b_ex * test_x**2 + c_ex * test_x**3 + d_ex * test_x**4 + e_ex * test_x**5 + f_ex * test_x**6 + g_ex
+    test_eulery = a_ey * test_x + b_ey * test_x**2 + c_ey * test_x**3 + d_ey * test_x**4 + e_ey * test_x**5 + f_ey * test_x**6 + g_ey
+    test_eulerz = a_ez * test_x + b_ez * test_x**2 + c_ez * test_x**3 + d_ez * test_x**4 + e_ez * test_x**5 + f_ez * test_x**6 + g_ez
 
     print(test_x, test_y, test_z, test_eulerx, test_eulery, test_eulerz)
     test_world_position = np.array([test_x, test_y, test_z])

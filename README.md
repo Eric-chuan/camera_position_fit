@@ -30,7 +30,8 @@ git clone https://github.com/Eric-chuan/camera_position_fit
 2. build
 
 ```sh
-python ./camera_position_fit.py
+python ./DataIO.py  #convert the data format to the fit function's input
+python ./CameraPositionFit.py
 ```
 
 ## Contributing

@@ -1,5 +1,5 @@
 positionPlot.py
 .vscode/*
-_pycache_/*
+__pycache__/
 rotation_matrix_result
 
